@@ -46,16 +46,11 @@ func UpdateBook(ctx *gin.Context) {
 		return
 	}
 
-	bookIDInt, errInt := strconv.Atoi(bookID)
-	if errInt != nil {
-		ctx.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
+	bookIDInt, _ := strconv.Atoi(bookID)
 	updateBook.BookID = bookIDInt
 
 	for i, book := range BookDatas {
-		if bookID == string(rune(book.BookID)) {
+		if bookIDInt == book.BookID {
 			condition = true
 			BookDatas[i] = updateBook
 			break
@@ -81,8 +76,10 @@ func GetBook(ctx *gin.Context) {
 
 	var bookData Book
 
+	bookIDInt, _ := strconv.Atoi(bookID)
+
 	for i, book := range BookDatas {
-		if bookID == string(rune(book.BookID)) {
+		if bookIDInt == book.BookID {
 			condition = true
 			bookData = BookDatas[i]
 			break
@@ -108,8 +105,10 @@ func DeleteBook(ctx *gin.Context) {
 
 	var bookIndex int
 
+	bookIDInt, _ := strconv.Atoi(bookID)
+
 	for i, book := range BookDatas {
-		if bookID == string(rune(book.BookID)) {
+		if bookIDInt == book.BookID {
 			condition = true
 			bookIndex = i
 			break
