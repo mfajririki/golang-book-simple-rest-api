@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,6 +45,14 @@ func UpdateBook(ctx *gin.Context) {
 		ctx.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+
+	bookIDInt, errInt := strconv.Atoi(bookID)
+	if errInt != nil {
+		ctx.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	updateBook.BookID = bookIDInt
 
 	for i, book := range BookDatas {
 		if bookID == string(rune(book.BookID)) {
