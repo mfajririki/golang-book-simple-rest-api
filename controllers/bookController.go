@@ -9,7 +9,7 @@ import (
 )
 
 type Book struct {
-	BookID int    `json:"car_id"`
+	BookID int    `json:"book_id"`
 	Title  string `json:"title"`
 	Author string `json:"author"`
 	Desc   string `json:"description"`
