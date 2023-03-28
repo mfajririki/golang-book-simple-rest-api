@@ -1,6 +1,6 @@
 # golang-book-simple-rest-api
 
-Challenge of DTS Kominfo Bootcamp
+Challenge of DTS Kominfo Bootcamp <br>
 Built with <a href="https://github.com/gin-gonic/gin" target="_blank">Gin Framework</a>
 
 This is a simple REST API following this documentation
