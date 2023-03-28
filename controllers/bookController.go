@@ -65,3 +65,30 @@ func UpdateBook(ctx *gin.Context) {
 		"message": fmt.Sprintf("Book with id %v has been successfully updated", bookID),
 	})
 }
+
+func GetBook(ctx *gin.Context) {
+	bookID := ctx.Param("bookID")
+	condition := false
+
+	var bookData Book
+
+	for i, book := range BookDatas {
+		if bookID == string(rune(book.BookID)) {
+			condition = true
+			bookData = BookDatas[i]
+			break
+		}
+	}
+
+	if !condition {
+		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"error_status":  "Data not found",
+			"error_message": fmt.Sprintf("Book with id %v not found", bookID),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"book": bookData,
+	})
+}
