@@ -17,11 +17,12 @@ type Book struct {
 	Desc   string `json:"description"`
 }
 
+// TODO: don't forget to change the DB if needed
 const (
 	host     = "localhost"
 	port     = 5432
 	user     = "postgres"
-	password = "SwordMaster"
+	password = ""
 	dbname   = "db-book"
 )
 
