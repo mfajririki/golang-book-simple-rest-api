@@ -1,67 +1,26 @@
 package controllers
 
 import (
-	"database/sql"
+	"book-simple-rest-api/database"
+	"book-simple-rest-api/models"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
-type Book struct {
-	BookID int    `json:"book_id"`
-	Title  string `json:"title"`
-	Author string `json:"author"`
-	Desc   string `json:"description"`
-}
-
-// TODO: don't forget to change the DB if needed
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = ""
-	dbname   = "db-book"
-)
-
 var (
-	db  *sql.DB
 	err error
 )
 
-func ConnectToDatabase() {
-
-}
-
 func CreateBook(ctx *gin.Context) {
-	// connect to database
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-	defer db.Close()
+	database.StartDB()
+	db := database.GetDB()
 
-	err = db.Ping()
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
+	newBook := models.Book{}
 
-	fmt.Println("Successfully connected to database.")
-
-	var newBook Book
-
-	sqlStatement := `
-	INSERT INTO books (title, author, description)
-	VALUES ($1, $2, $3)
-	RETURNING *
-	`
-
-	err = ctx.ShouldBindJSON(&newBook)
+	err = ctx.ShouldBind(&newBook)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),
@@ -69,12 +28,11 @@ func CreateBook(ctx *gin.Context) {
 		return
 	}
 
-	err = db.QueryRow(sqlStatement, newBook.Title, newBook.Author, newBook.Desc).
-		Scan(&newBook.BookID, &newBook.Title, &newBook.Author, &newBook.Desc)
+	err = db.Create(&newBook).Error
 
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
+			"error_message": fmt.Sprint("Error creating book data : ", err),
 		})
 		return
 	}
@@ -86,33 +44,16 @@ func CreateBook(ctx *gin.Context) {
 }
 
 func UpdateBook(ctx *gin.Context) {
-	// connect to database
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-
-	fmt.Println("Successfully connected to database.")
+	database.StartDB()
+	db := database.GetDB()
 
 	bookID := ctx.Param("bookID")
 
-	var updateBook Book
+	book := models.Book{}
 
-	sqlStatement := `
-	UPDATE books
-	SET title = $2, author = $3, description = $4
-	WHERE book_id = $1`
+	updateBook := models.Book{}
 
-	err = ctx.ShouldBindJSON(&updateBook)
+	err = ctx.ShouldBind(&updateBook)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),
@@ -120,10 +61,7 @@ func UpdateBook(ctx *gin.Context) {
 		return
 	}
 
-	bookIDInt, _ := strconv.Atoi(bookID)
-	updateBook.BookID = bookIDInt
-
-	res, err := db.Exec(sqlStatement, &updateBook.BookID, &updateBook.Title, &updateBook.Author, &updateBook.Desc)
+	err := db.Model(&book).Where("id = ?", bookID).Updates(updateBook).Error
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 			"error_status":  "Data not found",
@@ -132,96 +70,38 @@ func UpdateBook(ctx *gin.Context) {
 		return
 	}
 
-	count, err := res.RowsAffected()
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
-		})
-		return
-	}
-
 	ctx.JSON(http.StatusOK, gin.H{
-		"message":         fmt.Sprintf("Book with id %v has been successfully updated", bookID),
-		"Row(s) affected": count,
+		"message":      fmt.Sprintf("Book with id %v has been successfully updated", bookID),
+		"updated_book": updateBook,
 	})
 }
 
 func GetBooks(ctx *gin.Context) {
-	// connect to database
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-	defer db.Close()
+	database.StartDB()
+	db := database.GetDB()
 
-	err = db.Ping()
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
+	books := []models.Book{}
 
-	fmt.Println("Successfully connected to database.")
-
-	var books []Book
-
-	sqlStatement := `SELECT * FROM books`
-
-	rows, err := db.Query(sqlStatement)
+	err := db.Find(&books).Error
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),
 		})
 		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var book Book
-
-		err = rows.Scan(&book.BookID, &book.Title, &book.Author, &book.Desc)
-		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"Error": err.Error(),
-			})
-			return
-		}
-
-		books = append(books, book)
 	}
 
 	ctx.JSON(http.StatusOK, books)
 }
 
-func GetBook(ctx *gin.Context) {
-	// connect to database
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-
-	fmt.Println("Successfully connected to database.")
+func GetBookById(ctx *gin.Context) {
+	database.StartDB()
+	db := database.GetDB()
 
 	bookID := ctx.Param("bookID")
 
-	var book Book
+	book := models.Book{}
 
-	sqlStatement := `SELECT * FROM books
-	WHERE book_id = $1`
-
-	bookIDInt, _ := strconv.Atoi(bookID)
-
-	err := db.QueryRow(sqlStatement, bookIDInt).Scan(&book.BookID, &book.Title, &book.Author, &book.Desc)
+	err := db.First(&book, "id = ?", bookID).Error
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"Error": err.Error(),
@@ -229,63 +109,27 @@ func GetBook(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"book": book,
-	})
+	ctx.JSON(http.StatusOK, book)
 }
 
 func DeleteBook(ctx *gin.Context) {
-	// connect to database
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err = sql.Open("postgres", psqlInfo)
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		fmt.Println("ERROR : ", err)
-		return
-	}
-
-	fmt.Println("Successfully connected to database.")
+	database.StartDB()
+	db := database.GetDB()
 
 	bookID := ctx.Param("bookID")
 
-	sqlStatement := `
-	DELETE from books
-	WHERE book_id = $1`
+	book := models.Book{}
 
-	bookIDInt, _ := strconv.Atoi(bookID)
-
-	res, err := db.Exec(sqlStatement, bookIDInt)
+	err := db.Where("id = ?", bookID).Delete(&book).Error
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
-			"error_status":  "Data not found",
-			"error_message": fmt.Sprintf("Book with id %v not found", bookID),
-		})
-		return
-	}
-
-	count, err := res.RowsAffected()
-	if err != nil {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"Error": err.Error(),
-		})
-		return
-	}
-	if count == 0 {
-		ctx.AbortWithStatusJSON(http.StatusNotFound, gin.H{
-			"error_status":  "Data not found",
-			"error_message": fmt.Sprintf("Book with id %v not found", bookID),
+			"error_status":  "Error deleting book.",
+			"error_message": err,
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"Row(s) affected": count,
-		"message":         fmt.Sprintf("Book with id %v has been successfully deleted", bookID),
+		"message": fmt.Sprintf("Book with id %v has been successfully deleted", bookID),
 	})
 }
